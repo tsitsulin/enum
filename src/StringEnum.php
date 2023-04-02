@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tsitsulin\Enum;
 
@@ -16,7 +18,8 @@ abstract class StringEnum extends Enum
 {
     /**
      * Enum instances.
-     * @var Enum[][]
+     *
+     * @var static[][]
      */
     private static array $instances = [];
 
@@ -31,10 +34,24 @@ abstract class StringEnum extends Enum
     /**
      * {@inheritDoc}
      */
-    final protected function validateValue($value): void
+    final protected static function validateValue($value): string
     {
         if (!is_string($value)) {
-            throw new InvalidEnumCaseTypeError("StringEnum values can only be of the String type.");
+            throw new InvalidEnumCaseTypeError(
+                sprintf(
+                    "Value %s must be type of string, %s given.",
+                    print_r($value, true),
+                    gettype($value),
+                ),
+            );
         }
+
+        if (empty($value)) {
+            throw new InvalidEnumCaseTypeError(
+                'StringEnum value must be not empty.',
+            );
+        }
+
+        return $value;
     }
 }

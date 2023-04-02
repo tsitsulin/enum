@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tsitsulin\Enum\Examples;
 
@@ -11,6 +13,8 @@ use Tsitsulin\Enum\StringEnum;
  * @method static self Put()
  * @method static self Patch()
  * @method static self Delete()
+ *
+ * phpcs:disable Generic.NamingConventions.UpperCaseConstantName
  */
 final class HttpMethodEnum extends StringEnum
 {

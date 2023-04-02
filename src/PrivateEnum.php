@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tsitsulin\Enum;
 
@@ -7,6 +9,7 @@ namespace Tsitsulin\Enum;
  * Each enum that has implemented it has isolated private instances.
  * Otherwise, the instances of different enums will be collected in the StringEnum or/and IntEnum.
  * It is recommended to implement it, so as not to break the encapsulation.
+ *
  * @see StringEnum
  * @see IntEnum
  *
@@ -16,7 +19,8 @@ trait PrivateEnum
 {
     /**
      * Enum instances.
-     * @var Enum[][]
+     *
+     * @var static[][]
      */
     private static array $instances = [];
 

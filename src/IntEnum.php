@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tsitsulin\Enum;
 
@@ -16,7 +18,8 @@ abstract class IntEnum extends Enum
 {
     /**
      * Enum instances.
-     * @var Enum[][]
+     *
+     * @var static[][]
      */
     private static array $instances = [];
 
@@ -31,10 +34,24 @@ abstract class IntEnum extends Enum
     /**
      * {@inheritDoc}
      */
-    final protected function validateValue($value): void
+    final protected static function validateValue($value): int
     {
         if (!is_int($value)) {
-            throw new InvalidEnumCaseTypeError("IntEnum values can only be of the Int type.");
+            throw new InvalidEnumCaseTypeError(
+                sprintf(
+                    'Value %s must be type of int, %s given.',
+                    print_r($value, true),
+                    gettype($value),
+                ),
+            );
         }
+
+        if ($value < 0) {
+            throw new InvalidEnumCaseTypeError(
+                'IntEnum value must be positive.',
+            );
+        }
+
+        return $value;
     }
 }

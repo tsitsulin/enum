@@ -1,6 +1,16 @@
-<?php declare(strict_types=1);
+<?php
 
+declare(strict_types=1);
+
+namespace Tsitsulin\Enum\Tests;
+
+use Closure;
 use Codeception\Test\Unit;
+use Error;
+use Exception;
+use ReflectionClass;
+use ReflectionException;
+use Throwable;
 use Tsitsulin\Enum\Enum;
 use Tsitsulin\Enum\Errors\EnumCaseCannotBeModifiedError;
 use Tsitsulin\Enum\Errors\InvalidEnumCaseTypeError;
@@ -8,14 +18,6 @@ use Tsitsulin\Enum\Errors\UnexpectedEnumCaseCallError;
 use Tsitsulin\Enum\Errors\UnexpectedEnumCaseTypeError;
 use Tsitsulin\Enum\IntEnum;
 use Tsitsulin\Enum\StringEnum;
-use Tsitsulin\Enum\Tests\TestIntEnum;
-use Tsitsulin\Enum\Tests\TestIntEnum2;
-use Tsitsulin\Enum\Tests\TestIntPrivateEnum;
-use Tsitsulin\Enum\Tests\TestInvalidIntEnum;
-use Tsitsulin\Enum\Tests\TestInvalidStringEnum;
-use Tsitsulin\Enum\Tests\TestStringEnum;
-use Tsitsulin\Enum\Tests\TestStringEnum2;
-use Tsitsulin\Enum\Tests\TestStringPrivateEnum;
 
 /**
  * Unit tests.
@@ -27,11 +29,36 @@ use Tsitsulin\Enum\Tests\TestStringPrivateEnum;
 final class EnumTest extends Unit
 {
     /**
-     * Test typing.
+     * @return void
+     * @throws ReflectionException
      */
-    public function testTyping()
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        array_map(
+            static fn (string $class) => (new ReflectionClass($class))
+                ->setStaticPropertyValue('instances', []),
+            [
+                IntEnum::class,
+                StringEnum::class,
+            ],
+        );
+    }
+
+    /**
+     * Test typing.
+     *
+     * @return void
+     */
+    public function testTyping(): void
     {
         $foo = new class {
+            /**
+             * @param Enum $enum
+             *
+             * @return int|string
+             */
             public function testEnum(Enum $enum)
             {
                 return $enum->value;
@@ -57,9 +84,10 @@ final class EnumTest extends Unit
     /**
      * Test encapsulation.
      *
+     * @return void
      * @throws ReflectionException
      */
-    public function testEncapsulation()
+    public function testEncapsulation(): void
     {
         // Init enums
         $testStringEnum = TestStringEnum::Case1();
@@ -71,192 +99,310 @@ final class EnumTest extends Unit
 
         // There are no instances on base level
         $this->assertEmpty((new ReflectionClass(Enum::class))->getStaticProperties());
+
         // There is no private enum instance
-        $this->assertEquals([
-            $testStringEnum,
-            $testStringEnum2,
-        ], $this->getActualInstances(StringEnum::class));
-        $this->assertEquals([
-            $testIntEnum,
-            $testIntEnum2,
-        ], $this->getActualInstances(IntEnum::class));
+        $this->assertEquals(
+            [
+                $testStringEnum,
+                $testStringEnum2,
+            ],
+            $this->getActualInstances(StringEnum::class),
+        );
+        $this->assertEquals(
+            [
+                $testIntEnum,
+                $testIntEnum2,
+            ],
+            $this->getActualInstances(IntEnum::class),
+        );
+
         // There is only private enum instance
-        $this->assertEquals([
-            $testStringPrivateEnum,
-        ], $this->getActualInstances(TestStringPrivateEnum::class));
-        $this->assertEquals([
-            $testIntPrivateEnum,
-        ], $this->getActualInstances(TestIntPrivateEnum::class));
+        $this->assertEquals(
+            [$testStringPrivateEnum],
+            $this->getActualInstances(TestStringPrivateEnum::class),
+        );
+        $this->assertEquals(
+            [$testIntPrivateEnum],
+            $this->getActualInstances(TestIntPrivateEnum::class),
+        );
     }
 
     /**
      * Test equality.
+     *
+     * @return void
      */
-    public function testEquality()
+    public function testEquality(): void
     {
-        $this->assertTrue(TestStringEnum::Case1() === TestStringEnum::Case1());
+        $this->assertSame(TestStringEnum::Case1(), TestStringEnum::Case1());
     }
 
     /**
      * Test invalid enum.
+     *
+     * @return void
      */
-    public function testInvalidEnum()
+    public function testInvalidEnum(): void
     {
         $expectedError = InvalidEnumCaseTypeError::class;
-        $this->assertError($expectedError, fn() => TestInvalidStringEnum::Case1()->value);
-        $this->assertError($expectedError, fn() => TestInvalidIntEnum::Case1()->value);
-        $this->assertError($expectedError, fn() => TestInvalidStringEnum::Case1());
-        $this->assertError($expectedError, fn() => TestInvalidIntEnum::Case1());
+        $this->assertError($expectedError, fn () => TestInvalidStringEnum::Case1()->value);
+        $this->assertError($expectedError, fn () => TestInvalidIntEnum::Case1()->value);
+        $this->assertError($expectedError, fn () => TestInvalidStringEnum::Case1());
+        $this->assertError($expectedError, fn () => TestInvalidIntEnum::Case1());
     }
 
     /**
      * Test access to enum.
+     *
+     * @return void
      */
-    public function testAccess()
+    public function testAccess(): void
     {
         $this->assertErrorByMessage(
             'Cannot access protected const',
-            fn() => TestStringEnum::Case1,
+            /**
+             * @phpstan-ignore-next-line
+             */
+            fn () => TestStringEnum::Case1,
         );
     }
 
     /**
      * Test access to name and value.
+     *
+     * @return void
      */
-    public function testAccessToNameAndValue()
+    public function testAccessToNameAndValue(): void
     {
-        $this->assertTrue(TestStringEnum::Case1()->name === 'Case1');
-        $this->assertTrue(TestStringEnum::Case2()->value === 'value2');
+        $this->assertSame(TestStringEnum::Case1()->name, 'Case1');
+        $this->assertSame(TestStringEnum::Case2()->value, 'value2');
     }
 
     /**
      * Test name or value modification prevention.
+     *
+     * @return void
      */
-    public function testNameOrValueCannotBeModified()
+    public function testNameOrValueCannotBeModified(): void
     {
         $expectedError = EnumCaseCannotBeModifiedError::class;
-        $this->assertError($expectedError, fn() => TestStringEnum::Case1()->name = 'newName');
-        $this->assertError($expectedError, fn() => TestStringEnum::Case1()->value = 'newValue');
-        $this->assertError($expectedError, fn() => TestStringEnum::Case2()->value = 'value2');
-        $this->assertError($expectedError, fn() => TestIntEnum::Case1()->name = 'newName');
-        $this->assertError($expectedError, fn() => TestIntEnum::Case1()->value = 1);
-        $this->assertError($expectedError, fn() => TestIntEnum::Case2()->value = 102);
+        /** @phpstan-ignore-next-line */
+        $this->assertError($expectedError, fn () => TestStringEnum::Case1()->name = 'newName');
+        /** @phpstan-ignore-next-line */
+        $this->assertError($expectedError, fn () => TestStringEnum::Case1()->value = 'newValue');
+        /** @phpstan-ignore-next-line */
+        $this->assertError($expectedError, fn () => TestStringEnum::Case2()->value = 'value2');
+        /** @phpstan-ignore-next-line */
+        $this->assertError($expectedError, fn () => TestIntEnum::Case1()->name = 'newName');
+        /** @phpstan-ignore-next-line */
+        $this->assertError($expectedError, fn () => TestIntEnum::Case1()->value = 1);
+        /** @phpstan-ignore-next-line */
+        $this->assertError($expectedError, fn () => TestIntEnum::Case2()->value = 102);
     }
 
     /**
      * Test unexpected enum case handling.
+     *
+     * @return void
      */
-    public function testUnexpectedCase()
+    public function testUnexpectedCase(): void
     {
         $expectedError = UnexpectedEnumCaseCallError::class;
-        $this->assertError($expectedError, fn() => TestStringEnum::Case1()->invalid);
-        $this->assertError($expectedError, fn() => TestIntEnum::Case1()->invalid);
+        /** @phpstan-ignore-next-line */
+        $this->assertError($expectedError, fn () => TestStringEnum::Case1()->invalid);
+        /** @phpstan-ignore-next-line */
+        $this->assertError($expectedError, fn () => TestIntEnum::Case1()->invalid);
     }
 
     /**
      * Test external construction prevention.
+     *
+     * @return void
      */
-    public function testCannotBeConstructedExternally()
+    public function testCannotBeConstructedExternally(): void
     {
         $this->assertErrorByMessage(
             'Call to private',
-            fn() => new TestStringEnum(),
+            /**
+             * @phpstan-ignore-next-line
+             */
+            fn () => new TestStringEnum(),
         );
     }
 
     /**
      * Test UnitEnum interface for 'cases'.
+     *
+     * @return void
      */
-    public function testUnitEnumCases()
+    public function testUnitEnumCases(): void
     {
-        $this->assertEquals([
-            ['Case1' => 'value1'],
-            ['Case2' => 'value2'],
-        ], array_map(function (TestStringEnum $testStringEnum) {
-            return [$testStringEnum->name => $testStringEnum->value];
-        }, TestStringEnum::cases()));
+        $this->assertEquals(
+            [
+                ['Case1' => 'value1'],
+                ['Case2' => 'value2'],
+            ],
+            array_map(
+                static function (TestStringEnum $testStringEnum) {
+                    return [$testStringEnum->name => $testStringEnum->value];
+                },
+                TestStringEnum::cases(),
+            ),
+        );
 
-        $this->assertEquals([
-            ['Case1' => 101],
-            ['Case2' => 102],
-        ], array_map(function (TestIntEnum $testIntEnum) {
-            return [$testIntEnum->name => $testIntEnum->value];
-        }, TestIntEnum::cases()));
+        $this->assertEquals(
+            [
+                ['Case1' => 101],
+                ['Case2' => 102],
+            ],
+            array_map(
+                static function (TestIntEnum $testIntEnum) {
+                    return [$testIntEnum->name => $testIntEnum->value];
+                },
+                TestIntEnum::cases(),
+            ),
+        );
     }
 
     /**
      * Test BackedEnum Interface for 'from'.
+     *
+     * @return void
      */
-    public function testBackedEnumFrom()
+    public function testBackedEnumFrom(): void
     {
-        $expectedError = UnexpectedEnumCaseTypeError::class;
-        $this->assertError($expectedError, fn() => TestStringEnum::from(101));
-        $this->assertError($expectedError, fn() => TestStringEnum::from('invalidValue'));
-        $this->assertError($expectedError, fn() => TestIntEnum::from('101'));
-        $this->assertError($expectedError, fn() => TestIntEnum::from(1));
+        $this->assertIsInt(TestIntEnum::from(101)->value);
+        $this->assertIsString(TestStringEnum::from('value1')->value);
+        $this->assertError(InvalidEnumCaseTypeError::class, fn () => TestIntEnum::from('101'));
+        $this->assertError(InvalidEnumCaseTypeError::class, fn () => TestStringEnum::from(666));
+        $this->assertError(UnexpectedEnumCaseTypeError::class, fn () => TestIntEnum::from(666));
+        $this->assertError(UnexpectedEnumCaseTypeError::class, fn () => TestStringEnum::from('invalidValue'));
         $this->assertEquals(TestStringEnum::Case1()->value, TestStringEnum::from('value1')->value);
         $this->assertEquals(TestIntEnum::Case1()->value, TestIntEnum::from(101)->value);
     }
 
     /**
      * Test BackedEnum Interface for 'tryFrom'.
+     *
+     * @return void
      */
-    public function testBackedEnumTryFrom()
+    public function testBackedEnumTryFrom(): void
     {
-        $this->assertEquals(null, TestStringEnum::tryFrom(101));
-        $this->assertEquals(null, TestStringEnum::tryFrom('invalidValue'));
+        $this->assertIsInt(TestIntEnum::tryFrom(101)->value ?? null);
+        $this->assertIsString(TestStringEnum::tryFrom('value1')->value ?? null);
         $this->assertEquals(null, TestIntEnum::tryFrom('101'));
-        $this->assertEquals(null, TestIntEnum::tryFrom(1));
-        $this->assertEquals(TestStringEnum::Case1()->value, TestStringEnum::tryFrom('value1')->value);
-        $this->assertEquals(TestIntEnum::Case1()->value, TestIntEnum::tryFrom(101)->value);
+        $this->assertEquals(null, TestIntEnum::tryFrom(666));
+        $this->assertEquals(null, TestStringEnum::tryFrom(666));
+        $this->assertEquals(null, TestStringEnum::tryFrom('invalidValue'));
+        $this->assertEquals(TestStringEnum::Case1()->value, TestStringEnum::tryFrom('value1')->value ?? null);
+        $this->assertEquals(TestIntEnum::Case1()->value, TestIntEnum::tryFrom(101)->value ?? null);
     }
 
     /**
      * Test polyfill functions.
+     *
+     * @return void
+     * @throws Exception
      */
-    public function testFunctions()
+    public function testFunctions(): void
     {
         $this->assertTrue(enum_exists(TestStringEnum::class));
         $this->assertTrue(enum_exists(TestIntEnum::class));
     }
 
     /**
+     * Test serialization.
+     *
+     * @return void
+     */
+    public function testSerialization(): void
+    {
+        $case1 = TestIntEnum::Case1();
+        $serializedCase1 = serialize($case1);
+        /**
+         * @var IntEnum $deserializedCase1
+         */
+        $deserializedCase1 = unserialize($serializedCase1);
+        $this->assertSame(
+            [
+                TestIntEnum::Case1(),
+                TestIntEnum::Case2(),
+            ],
+            $deserializedCase1::cases(),
+        );
+        $this->assertSame($case1->name, $deserializedCase1->name);
+        $this->assertSame($case1->value, $deserializedCase1->value);
+        $this->assertNotSame($case1, $deserializedCase1);
+        $deserializedCase1 = deserialize_enum($serializedCase1);
+        $this->assertSame($case1, $deserializedCase1);
+    }
+
+    /**
+     * Test isset.
+     *
+     * @return void
+     */
+    public function testIsset(): void
+    {
+        $this->assertTrue(isset(TestStringEnum::Case1()->name));
+        $this->assertTrue(isset(TestStringEnum::Case1()->value));
+    }
+
+    /**
      * Get actual instances.
      *
-     * @param string<Enum> $className
+     * @param class-string<Enum> $className
+     *
      * @return Enum[]
      * @throws ReflectionException
      */
     private function getActualInstances(string $className): array
     {
-        return array_values(array_map(function (array $item) {
-            return array_shift($item);
-        },
-            (new ReflectionClass($className))
-                ->getStaticPropertyValue('instances')
-        ));
+        /** @var Enum[] $instances */
+        $instances = (new ReflectionClass($className))
+            ->getStaticPropertyValue('instances');
+
+        /** @var Enum[] $actual */
+        $actual = array_values(
+            array_map(
+                /** @phpstan-ignore-next-line */
+                static function (array $instances): Enum {
+                    /** @var Enum $instance */
+                    $instance = array_shift($instances);
+
+                    return $instance;
+                },
+                $instances,
+            )
+        );
+
+        return $actual;
     }
 
     /**
      * Assert an error.
      *
-     * @param string $expectedError
+     * @param class-string<Error> $expectedError
      * @param Closure $expression
+     *
+     * @return void
      */
-    private function assertError(string $expectedError, Closure $expression)
+    private function assertError(string $expectedError, Closure $expression): void
     {
         $e = null;
         try {
             $expression();
         } catch (Throwable $e) {
         }
-        $this->assertTrue(
-            $e instanceof $expectedError,
+
+        $this->assertInstanceOf(
+            $expectedError,
+            $e,
             sprintf(
                 'Expected an instance of %s. Received: %s',
                 $expectedError,
-                $e instanceof Throwable ? $e->getMessage() : 'Null'
-            )
+                $e instanceof Throwable ? $e->getMessage() : 'Null',
+            ),
         );
     }
 
@@ -265,15 +411,20 @@ final class EnumTest extends Unit
      *
      * @param string $expectedMessage
      * @param Closure $expression
+     *
+     * @return void
      */
-    private function assertErrorByMessage(string $expectedMessage, Closure $expression)
+    private function assertErrorByMessage(string $expectedMessage, Closure $expression): void
     {
         $e = null;
         try {
             $expression();
         } catch (Error $e) {
         }
-        $this->assertTrue($e instanceof Error, "Expected an instance of Error.");
-        $this->assertTrue(strpos($e->getMessage(), $expectedMessage) !== false, "Expected error message '$expectedMessage' but actual is '{$e->getMessage()}'");
+        $this->assertInstanceOf(Error::class, $e, "Expected an instance of Error.");
+        $this->assertNotFalse(
+            strpos($e->getMessage(), $expectedMessage),
+            "Expected error message '$expectedMessage' but actual is '{$e->getMessage()}'",
+        );
     }
 }
